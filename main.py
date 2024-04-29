@@ -11,6 +11,8 @@ import socket
 import matplotlib.pyplot as plt
 from email.mime.base import MIMEBase
 from email import encoders
+import random
+import string
 
 # Define a class to manage user behavior simulation
 class UserBehaviorSimulator:
@@ -62,10 +64,15 @@ class UserBehaviorSimulator:
             for incident in self.incidents:
                 report_file.write(f"- {incident}\n")
 
-        # Send the report via email
-        subject = "Incident Report"
-        message = "Please find the attached incident report."
-        self.send_email_with_attachment(subject, message, report_filename)
+        # Create the message body for the email
+        subject = "Incident Report and Account Lock Notification"
+        message = "Please find the attached incident report. The user account has been locked due to suspicious activity."
+
+        # Attach the incident report to the email
+        attachment_filename = report_filename
+
+        # Send the email with the incident report attached
+        self.send_email_with_attachment(subject, message, attachment_filename)
         messagebox.showinfo("Report Generated", f"Report saved as {report_filename} and sent via email.")
 
     def generate_visualization(self):
@@ -195,6 +202,14 @@ class LoginGUI:
         self.entry_password = tk.Entry(root, show="*")
         self.entry_password.pack()
 
+        self.label_captcha = tk.Label(root, text="Captcha:")
+        self.label_captcha.pack()
+        self.entry_captcha = tk.Entry(root)
+        self.entry_captcha.pack()
+
+        self.captcha_str = ""
+        self.reset_captcha()
+
         self.button_login = tk.Button(root, text="Login", command=self.login)
         self.button_login.pack()
 
@@ -202,12 +217,27 @@ class LoginGUI:
         self.monitor_thread.daemon = True
         self.monitor_thread.start()
 
+    def reset_captcha(self):
+        self.captcha_str = self.generate_captcha()
+        self.label_captcha.config(text=self.captcha_str)
+
+    def generate_captcha(self):
+        captcha_length = 6
+        captcha_characters = string.ascii_letters + string.digits + "/-"
+        return ''.join(random.choice(captcha_characters) for i in range(captcha_length))
+
     # Function to handle login
     def login(self):
         username = self.entry_username.get()
         password = self.entry_password.get()
+        captcha = self.entry_captcha.get()
 
         credentials = read_credentials("passwords.txt")
+
+        if captcha != self.captcha_str:
+            messagebox.showerror("Incorrect Captcha", "Please enter the correct captcha.")
+            self.reset_captcha()
+            return
 
         if credentials and username in credentials and credentials[username] == password:
             self.user_simulator.simulate_login()
