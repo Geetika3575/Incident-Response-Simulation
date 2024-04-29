@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox,simpledialog
 from datetime import datetime
 import threading
 import time
@@ -16,7 +16,7 @@ import string
 
 # Define a class to manage user behavior simulation
 class UserBehaviorSimulator:
-    def _init_(self):
+    def __init__(self):
         self.login_attempts = 0
         self.failed_login_attempts = 0
         self.used_usernames = set()
@@ -178,11 +178,29 @@ class UserBehaviorSimulator:
             server.sendmail(sender_email, receiver_email, text)
 
 # Define a class for the login GUI
+def read_credentials(file_path):
+    credentials = {}
+    try:
+        with open(file_path, "r") as file:
+            for line in file:
+                line = line.strip()  # Remove leading/trailing whitespace
+                if line:  # Check if the line is not empty
+                    parts = line.split(':')
+                    if len(parts) == 2:  # Ensure there are exactly two parts (username and password)
+                        username, password = parts
+                        credentials[username] = password
+                    else:
+                        print(f"Ignore malformed line: {line}")
+    except FileNotFoundError:
+        print("Password file not found.")
+    return credentials
+
+
 class LoginGUI:
-    def _init_(self, root):
+    def __init__(self, root):
         self.root = root
         self.root.title("Login Simulation")
-        self.root.geometry("300x250")
+        self.root.geometry("400x400")  # Larger window size
 
         self.user_simulator = UserBehaviorSimulator()
         self.logged_in = False
@@ -216,6 +234,42 @@ class LoginGUI:
         self.monitor_thread = threading.Thread(target=self.monitor_login_activity)
         self.monitor_thread.daemon = True
         self.monitor_thread.start()
+
+        # Add a menu bar
+        self.menu_bar = tk.Menu(root)
+        self.root.config(menu=self.menu_bar)
+
+        # Add a File menu with options to generate report and exit
+        self.file_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="File", menu=self.file_menu)
+        self.file_menu.add_command(label="Generate Report", command=self.generate_report)
+        self.file_menu.add_command(label="Exit", command=root.quit)
+
+        # Add a Help menu with an About option
+        self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Help", menu=self.help_menu)
+        self.help_menu.add_command(label="About", command=self.show_about)
+
+        # Add a View menu with options to view incidents and visualization
+        self.view_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="View", menu=self.view_menu)
+        self.view_menu.add_command(label="View Incidents", command=self.view_incidents)
+        self.view_menu.add_command(label="View Visualization", command=self.view_visualization)
+
+        # Add a Send menu with an option to send an alert
+        self.send_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Send", menu=self.send_menu)
+        self.send_menu.add_command(label="Send Alert", command=self.send_alert)
+
+        # Add a Window menu with options to open a new window and generate random number
+        self.window_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Window", menu=self.window_menu)
+        self.window_menu.add_command(label="Open Window", command=self.open_window)
+        self.window_menu.add_command(label="Generate Random Number", command=self.generate_random_number)
+        self.window_menu.add_command(label="Change Label Text", command=self.change_label_text)
+
+        self.new_window = None
+        self.label_in_new_window = None
 
     def reset_captcha(self):
         self.captcha_str = self.generate_captcha()
@@ -264,23 +318,62 @@ class LoginGUI:
             self.label_failed_attempts.config(text=f"Failed Login Attempts: {self.user_simulator.failed_login_attempts}")
             time.sleep(1)
 
-# Function to read credentials from a file
-def read_credentials(file_path):
-    credentials = {}
-    try:
-        with open(file_path, "r") as file:
-            for line in file:
-                line = line.strip()  # Remove leading/trailing whitespace
-                if line:  # Check if the line is not empty
-                    parts = line.split(':')
-                    if len(parts) == 2:  # Ensure there are exactly two parts (username and password)
-                        username, password = parts
-                        credentials[username] = password
-                    else:
-                        print(f"Ignore malformed line: {line}")
-    except FileNotFoundError:
-        print("Password file not found.")
-    return credentials
+    # Function to generate and show the report
+    def generate_report(self):
+        self.user_simulator.generate_report()
+
+    # Function to show the About dialog
+    def show_about(self):
+        messagebox.showinfo("About", "This is a login simulation application.")
+
+    # Function to view incidents
+    def view_incidents(self):
+        incidents_window=tk.Toplevel(self.root)
+        incidents_window.title("Incidents")
+        incidents_window.geometry("400x300")
+
+        scrollbar=tk.Scrollbar(incidents_window)
+        scrollbar.pack(side=tk.RIGHT,fill=tk.Y)
+
+        incidents_listbox=tk.Listbox(incidents_window,yscrollcommand=scrollbar.set)
+        for incident in self.user_simulator.incidents:
+            incidents_listbox.insert(tk.END,incident)
+        incidents_listbox.pack(side=tk.LEFT,fill=tk.BOTH,expand=True)  # Expand and fill the entire window
+
+        scrollbar.config(command=incidents_listbox.yview)
+
+    # Function to send an alert
+    def send_alert(self):
+        subject="Alert: Suspicious Activity Detected"
+        message="Suspicious activity has been detected in the system."
+        self.user_simulator.send_email(subject,message)
+        messagebox.showinfo("Alert Sent","Alert has been sent successfully.")
+
+    # Function to view the login activity visualization
+    def view_visualization(self):
+        self.user_simulator.generate_visualization()
+
+    # Function to open a new window
+    def open_window(self):
+        self.new_window = tk.Toplevel(self.root)
+        self.new_window.title("New Window")
+        self.new_window.geometry("200x100")
+
+        self.label_in_new_window = tk.Label(self.new_window, text="New Window")
+        self.label_in_new_window.pack()
+
+    # Function to generate and display a random number in the new window
+    def generate_random_number(self):
+        if self.new_window and self.label_in_new_window:
+            random_number = random.randint(1, 100)
+            self.label_in_new_window.config(text=f"Random Number: {random_number}")
+
+    # Function to change the label text in the new window
+    def change_label_text(self):
+        if self.new_window and self.label_in_new_window:
+            new_text = simpledialog.askstring("Change Label Text", "Enter new text:")
+            if new_text:
+                self.label_in_new_window.config(text=new_text)
 
 # Main function to initialize the application
 def main():
@@ -289,5 +382,5 @@ def main():
     root.mainloop()
 
 # Entry point of the application
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
